@@ -1,6 +1,7 @@
 package plage
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"filippo.io/age"
 )
 
-var smFlag = flag.String("age-plugin", "", "The state machine selector flag as per age-plugin spec")
+var smFlag = flag.String("age-plugin", "", "The state machine selector flag as per the age-plugin spec. Currently supports 'recipient-v1' and 'identity-v1'")
 
 func init() {
 	flag.Parse()
@@ -17,7 +18,7 @@ func init() {
 func GetMachine(name string) any {
 	switch name {
 	case "recipient-v1":
-		return recipientV1
+		return newRecipientV1
 	case "identity-v1":
 		return identityV1
 	}
@@ -32,40 +33,54 @@ type RecipientV1 interface {
 	WrapFileKey([]byte) []byte
 }
 
-func (r *recipientV1) addRecipient(c *Command) {
+type smRecipientV1 struct {
+	recipients []age.Recipient
+	identities []age.Identity
+}
+
+func (r *smRecipientV1) addRecipient(c *Command) {
 
 }
 
-func (r *recipientV1) addIdentity(c *Command) {
+func (r *smRecipientV1) addIdentity(c *Command) {
 
 }
 
-func (r *recipientV1) wrapFileKey(c *Command) {
+func (r *smRecipientV1) wrapFileKey(c *Command) {
 
 }
 
-func (r *recipientV1) Phase1(c *CmdReader) {
+func (r *smRecipientV1) doIt() error {
+
+}
+
+func (r *smRecipientV1) Phase1(ctx context.Context, c *CmdReader, plugin *RecipientV1) error {
 	errCount := 0
-	for errCount < 5 {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		cmd, err := c.ReadCommand()
 		if err != nil {
 			errCount++
+			fmt.Fprintln(os.Stderr, "error reading command:", err, errCount)
 			continue
 		}
 		switch cmd {
 		case nil:
 			continue
 		case cmd.Name() == "add-recipient":
-			addRecipient(cmd)
+			r.addRecipient(cmd, plugin)
 		case cmd.Name() == "add-identity":
-			addIdentity(cmd)
+			r.addIdentity(cmd, plugin)
 		case cmd.Name() == "wrap-file-key":
-			wrapFileKey(cmd)
+			r.wrapFileKey(cmd, plugin)
 		case Done:
-			DoIt()
+			return r.doIt()
 		default:
 			continue
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Too many errors while parsing commands in Recipient V1 Phase 1, aborting")
 }
