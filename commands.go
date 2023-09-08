@@ -26,7 +26,7 @@ func (c *Command) Metadata() []string {
 }
 
 // Data returns the data associated with the command, if any, otherwise nil
-func (c *Command) Data() []string {
+func (c *Command) Data() []byte {
 	return c.Body
 }
 
